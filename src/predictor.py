@@ -14,6 +14,8 @@ from sklearn import (
 from scipy import stats
 
 
+from data.read_data import read_data_val
+
 param_grid = [
     {
         "hidden_layer_sizes": [
@@ -39,7 +41,7 @@ class SimpleNNPredictor(ML):
         self.hp_opt = hp_opt
 
         self.model = neural_network.MLPRegressor(
-            hidden_layer_sizes=(500, 500, 500, 500, 500, 500, 400, 200, 100, 50),
+            hidden_layer_sizes=(500, 500, 500, 500, 500, 200, 200, 200),
             activation="relu",
             random_state=123,
             solver="adam",
@@ -85,8 +87,18 @@ class SimpleNNPredictor(ML):
         self.pipeline.fit(X_train, y_train)
 
     def predict(self, X) -> float:
+        if 'Market' in X:
+            # We're in prediction mode
+            X = read_data_val(X)
         # Transform data by previously fitted scaler
         X = self.scaler.transform(X)
         # Transform data by previously fitted PCA
         X = self.pca.transform(X)
-        return self.pipeline.predict(X)
+        prediction = self.pipeline.predict(X)
+        greater_idx = (prediction>0.05)
+        smaller_idx = (prediction<0.05)
+        prediction[greater_idx] = 1.0
+        prediction[smaller_idx] = -1.0
+        prediction[(~greater_idx) & (~smaller_idx)] = 0
+        prediction = prediction.item() if prediction.size == 1 else prediction
+        return prediction
